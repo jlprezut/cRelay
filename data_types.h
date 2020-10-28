@@ -87,6 +87,7 @@ typedef struct card_info
     uint8_t num_relays;
     const char* relay_label[16] ;
     const char* comment;
+    uint8_t model ;
     struct card_info *next;
 } 
 card_info_t;

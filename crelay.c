@@ -57,8 +57,8 @@
 #include "config.h"
 #include "relay_drv.h"
 
-#define VERSION "0.20"
-#define DATE "2020"
+#define VERSION "0.30"
+#define DATE "20200710"
 
 /* HTTP server defines */
 #define SERVER "crelay/"VERSION
@@ -180,7 +180,7 @@ static int config_cb(void* user, const char* section, const char* name, const ch
          for (int i=1;i<=pconfig->number;i++)
          {
             sprintf((char *)&buf,"Board %d",i) ;
-            if ((MATCH(buf,"serial")) || (MATCH(buf,"num_relays")) || (MATCH(buf,"comment")) || (MATCH(buf,"relay1_label")) || (MATCH(buf,"relay2_label")) || (MATCH(buf,"relay3_label")) || (MATCH(buf,"relay4_label")) || (MATCH(buf,"relay5_label")) || (MATCH(buf,"relay6_label")) || (MATCH(buf,"relay7_label")) || (MATCH(buf,"relay8_label")) || (MATCH(buf,"relay9_label")) || (MATCH(buf,"relay10_label")) || (MATCH(buf,"relay11_label")) || (MATCH(buf,"relay12_label")) || (MATCH(buf,"relay13_label")) || (MATCH(buf,"relay14_label")) || (MATCH(buf,"relay15_label")) || (MATCH(buf,"relay16_label")))
+            if ((MATCH(buf,"serial")) || (MATCH(buf,"num_relays")) || (MATCH(buf,"comment")) || (MATCH(buf,"model")) || (MATCH(buf,"relay1_label")) || (MATCH(buf,"relay2_label")) || (MATCH(buf,"relay3_label")) || (MATCH(buf,"relay4_label")) || (MATCH(buf,"relay5_label")) || (MATCH(buf,"relay6_label")) || (MATCH(buf,"relay7_label")) || (MATCH(buf,"relay8_label")) || (MATCH(buf,"relay9_label")) || (MATCH(buf,"relay10_label")) || (MATCH(buf,"relay11_label")) || (MATCH(buf,"relay12_label")) || (MATCH(buf,"relay13_label")) || (MATCH(buf,"relay14_label")) || (MATCH(buf,"relay15_label")) || (MATCH(buf,"relay16_label")))
             {
                if (pconfig->card_list == NULL)
                {
@@ -189,6 +189,8 @@ static int config_cb(void* user, const char* section, const char* name, const ch
                   pconfig->card_list->card_id = i ;
                   pconfig->card_list->serial_type = SERIAL_FIRST;
                   pconfig->card_list->serial = NULL ;
+                  pconfig->card_list->comment = NULL ;
+                  pconfig->card_list->model = NO_RELAY_TYPE ;
                   for (int k=0 ; k<16; k++)
                   {
                      pconfig->card_list->relay_label[k] = NULL ;
@@ -207,6 +209,8 @@ static int config_cb(void* user, const char* section, const char* name, const ch
                         current->next->card_id = i ;
                         current->next->serial_type = SERIAL_FIRST;
                         current->next->serial = NULL ;
+                        current->next->comment = NULL ;
+                        current->next->model = NO_RELAY_TYPE ;
                         for (int k=0 ; k<16; k++)
                         {
                            current->next->relay_label[k] = NULL ;
@@ -242,6 +246,10 @@ static int config_cb(void* user, const char* section, const char* name, const ch
                else if (MATCH(buf,"comment"))
                {
                   current->comment = strdup(value);
+               }
+               else if (MATCH(buf,"model"))
+               {
+                  current->model = atoi(value);
                }
                else 
                {
@@ -683,7 +691,7 @@ void webui(int sock)
       { 
          while (relay_info->next != NULL)
          {
-            crelay_detect_relay_card(com_port, &last_relay, relay_info->serial, NULL) ;
+            crelay_detect_relay_card(com_port, &last_relay, relay_info->serial, NULL, NO_RELAY_TYPE) ;
             crelay_get_relay_card_name(relay_info->relay_type, cname);
             fprintf(fout, "<tr style=\"font-size: 14px; background-color: lightgrey\">\r\n");
             fprintf(fout, "<td style=\"width: 200px;\">%s<br><span style=\"font-style: italic; font-size: 12px; color: grey; font-weight: normal;\">on %s</span></td>\r\n", 
@@ -727,7 +735,7 @@ void webui(int sock)
       while ( current != NULL ) 
       {     
          not_found = 1 ;
-         if (crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL) == -1)
+         if (crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL, current->model) == -1)
          {
             not_found = 0 ;
             if (current->serial_type == SERIAL_AUTO)
@@ -753,7 +761,7 @@ void webui(int sock)
                         {
                            free((void *)current->serial) ;
                            current->serial = strdup(current_relay_info->serial) ;
-                           crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL) ;
+                           crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL, current->model) ;
                            not_found = 1 ;
                            syslog(LOG_DAEMON | LOG_NOTICE, "serial affected : %s\n", current->serial);
                            break ;
@@ -910,7 +918,7 @@ void send_json_board(int sock, relay_info_t *relay_info)
       
       while (relay_info->next != NULL)
       {
-         if (!strcmp(relay_info->serial, current->serial))
+         if (!strcmp(relay_info->serial, current->serial) && (current->model == NO_RELAY_TYPE || current->model == relay_info->relay_type))
          {
             crelay_get_relay_card_name(relay_info->relay_type, cname) ;
             found_card = 1 ;
@@ -1082,6 +1090,7 @@ int new_process_http_request(int sock)
       formdatalen = read_httpget_data(url, formdata, sizeof(formdata));
    }
    else
+
    {
       exit_value = -3;
       goto new_done;
@@ -1150,7 +1159,7 @@ int new_process_http_request(int sock)
    if (!strncmp(url,"/api/card",9))
    {
       
-      if (crelay_detect_relay_card(com_port, &last_relay, NULL, NULL) == -1)
+      if (crelay_detect_relay_card(com_port, &last_relay, NULL, NULL,0) == -1)
       {
          send_json_no_device(sock) ;
          goto new_done ;
@@ -1238,7 +1247,7 @@ int new_process_http_request(int sock)
             {
                if (current->card_id == vcard_id)
                {
-                  if (crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL) == -1)
+                  if (crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL, current->model) == -1)
                   {
                      if (current->serial_type == SERIAL_AUTO)
                      {
@@ -1262,6 +1271,7 @@ int new_process_http_request(int sock)
                               }
                               if (serial_in_use == 0)
                               {
+
                                  free((void *)current->serial) ;
                                  current->serial = strdup(current_relay_info->serial) ;
                                  syslog(LOG_DAEMON | LOG_NOTICE, "serial affected : %s\n", current->serial);
@@ -1292,7 +1302,7 @@ int new_process_http_request(int sock)
             }
          }
       }
-      
+            
       action = 0 ;
       switch (count_occurrence(url,'/')) {
          
@@ -1315,14 +1325,44 @@ int new_process_http_request(int sock)
             action = (action==0)?1:action ;
             break ;
       }
-      
-      syslog(LOG_DAEMON | LOG_NOTICE, "serial B : %s\n", serial);
-      if (crelay_detect_relay_card(com_port, &last_relay, serial, NULL) == -1)
+
+      syslog(LOG_DAEMON | LOG_NOTICE, "serial B : %s\n", serial);      
+      if (config.number !=0)
       {
-         send_json_no_device(sock) ;
-         goto new_done ;
+
+         card_info_t * current;
+         current = config.card_list ;
+         
+         int found = 0 ;
+         
+         while ( current != NULL ) 
+         {
+                        
+            if (!strcmp((char *)current->serial,serial))
+            {
+               if (crelay_detect_relay_card(com_port, &last_relay, (char *)current->serial, NULL, current->model) != -1)
+               {
+                  found = 1 ;
+                  break;
+               }
+            }
+            current = current->next ;
+         }
+         if (found == 0)
+         {
+            send_json_no_device(sock) ;
+            goto new_done ;
+         }
       }
-      
+      else
+      {
+         if (crelay_detect_relay_card(com_port, &last_relay, serial, NULL, NO_RELAY_TYPE) == -1)
+         {
+            send_json_no_device(sock) ;
+            goto new_done ;
+         }
+      }
+  
       switch (action) {
          
          case 0:
@@ -1545,6 +1585,7 @@ int main(int argc, char *argv[])
                      current->relay_label[k] = strdup(template);
                   }
                }
+               if (current->model != 0) syslog(LOG_DAEMON | LOG_NOTICE, "model: %u\n", current->model);
                if (current->comment != NULL) syslog(LOG_DAEMON | LOG_NOTICE, "comment: %s\n", current->comment);
                
                if (current->serial_type == SERIAL_AUTO || current->serial_type == SERIAL_FIRST)
@@ -1559,7 +1600,7 @@ int main(int argc, char *argv[])
                         search = config.card_list ;
                         while ( search != NULL ) 
                         {
-                           if (search->serial != NULL && !strcmp(search->serial ,current_relay_info->serial))
+                           if (search->serial != NULL && !strcmp(search->serial ,current_relay_info->serial) && (search->model ==0 || search->model == current_relay_info->relay_type) )
                            {
                               serial_in_use = 1 ;
                               break ;
@@ -1569,7 +1610,7 @@ int main(int argc, char *argv[])
                         if (serial_in_use == 0)
                         {
                            current->serial = strdup(current_relay_info->serial) ;
-                           syslog(LOG_DAEMON | LOG_NOTICE, "serial affected : %s\n", current->serial);
+                           syslog(LOG_DAEMON | LOG_NOTICE, "serial affected : %s (%i)\n", current->serial, current_relay_info->relay_type);
                            break ;
                         }
                      }
@@ -1685,7 +1726,7 @@ int main(int argc, char *argv[])
       }
 
       /* Init GPIO pins in case they have been configured */
-//      crelay_detect_relay_card(com_port, &num_relays, NULL, NULL);
+//      crelay_detect_relay_card(com_port, &num_relays, NULL, NULL,0);
       
       while (1)
       {
@@ -1766,7 +1807,7 @@ int main(int argc, char *argv[])
          }
       }
 
-      if (crelay_detect_relay_card(com_port, &num_relays, serial, NULL) == -1)
+      if (crelay_detect_relay_card(com_port, &num_relays, serial, NULL,0) == -1)
       {
          printf("No compatible device detected.\n");
          

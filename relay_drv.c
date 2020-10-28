@@ -44,6 +44,7 @@
 #include "relay_drv_hidapi.h"
 #include "relay_drv_sainsmart16.h"
 #include "relay_drv_sainsmart16_CH340.h"
+#include "relay_drv_cge8.h"
 #include "relay_drv_gpio.h"
 
 
@@ -73,6 +74,10 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       free_static_mem_conrad_4chan,
       CONRAD_4CHANNEL_USB_NAME
    },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
+   },
 #endif
 #ifdef DRV_SAINSMART
    {  // SAINSMART_USB_RELAY_TYPE
@@ -82,6 +87,10 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       close_sainsmart_4_8chan,
       free_static_mem_sainsmart_4_8chan,
       SAINSMART_USB_NAME
+   },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
    },
 #endif
 #ifdef DRV_HIDAPI
@@ -93,6 +102,10 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       free_static_mem_hidapi,
       HID_API_RELAY_NAME
    },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
+   },
 #endif
 #ifdef DRV_SAINSMART16
    {  // SAINSMART16_USB_RELAY_TYPE
@@ -102,6 +115,10 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       close_sainsmart_16chan,
       free_static_mem_sainsmart_16chan,
       SAINSMART16_USB_NAME
+   },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
    },
 #endif
 #ifdef DRV_SAINSMART16_CH340
@@ -113,6 +130,24 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       free_static_mem_sainsmart_16chan_CH340,
       SAINSMART16_CH340_NAME
    },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
+   },
+#endif
+#ifdef DRV_CGE8
+   {  // CGE8_USB_RELAY_TYPE
+      detect_relay_card_cge_usb_8chan,
+      get_relay_cge_usb_8chan,
+      set_relay_cge_usb_8chan,
+      close_cge_usb_8chan,
+      free_static_mem_cge_usb_8chan,
+      CGE8_USB_NAME
+   },
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
+   },
 #endif
 #ifndef BUILD_LIB
    {  // GENERIC_GPIO_RELAY_TYPE
@@ -122,6 +157,10 @@ static relay_data_t relay_data[LAST_RELAY_TYPE] =
       close_generic_gpio,
       free_static_mem_generic_gpio,
       GENERIC_GPIO_NAME
+   }
+#else
+   {
+      NULL, NULL, NULL, NULL, NULL, ""
    }
 #endif
 };
@@ -143,7 +182,7 @@ int crelay_detect_all_relay_cards(relay_info_t** relay_info)
 {
    int i;
    relay_info_t* my_relay_info;
-   
+  
    /* Create first list element */
    my_relay_info = malloc(sizeof(relay_info_t));
    my_relay_info->next = NULL;
@@ -151,11 +190,14 @@ int crelay_detect_all_relay_cards(relay_info_t** relay_info)
    *relay_info = my_relay_info;
 
    /* Return pointer to first element to caller */
-
    for (i=1; i<LAST_RELAY_TYPE; i++)
    {
+      if (relay_data[i].detect_relay_card_fun != NULL)
       /* Create new list element with related info for each detected card */
-      (*relay_data[i].detect_relay_card_fun)(NULL, NULL, NULL, &my_relay_info);
+      {
+         (*relay_data[i].detect_relay_card_fun)(NULL, NULL, NULL, &my_relay_info);
+
+      }
    }
    
    if ((*relay_info)->next == NULL)
@@ -180,19 +222,20 @@ int crelay_detect_all_relay_cards(relay_info_t** relay_info)
  * Return:  0 - success
  *         -1 - fail, no relay card found
  *********************************************************/
-int crelay_detect_relay_card(char* portname, uint8_t* num_relays, char* serial, relay_info_t** relay_info)
+int crelay_detect_relay_card(char* portname, uint8_t* num_relays, char* serial, relay_info_t** relay_info, relay_type_t model)
 {
    int i;
 
    for (i=1; i<LAST_RELAY_TYPE; i++)
    {
 //      printf("i=%i -- ",i) ;
-      if (serial != NULL && (*relay_data[i].detect_relay_card_fun)(portname, num_relays, serial, NULL) == 0)
-      { 
-//         printf("Trouvé\n") ;
-         relay_type=i;
-         return 0;
-      }       
+      if (relay_data[i].detect_relay_card_fun != NULL && (model == NO_RELAY_TYPE || model == i))
+         if (serial != NULL && (*relay_data[i].detect_relay_card_fun)(portname, num_relays, serial, NULL) == 0)
+         { 
+//            printf("Trouvé\n") ;
+            relay_type=i;
+            return 0;
+         }       
 //      printf("NON\n") ;  
    }
    
@@ -296,7 +339,8 @@ int crelay_close()
 {
    for (int i=1; i<LAST_RELAY_TYPE; i++)
    {
-      (*relay_data[i].close_fun)() ;
+      if (relay_data[i].close_fun != NULL)
+         (*relay_data[i].close_fun)() ;
    }
    return 0 ;
 }
@@ -305,7 +349,8 @@ int crelay_free_static_mem()
 {
    for (int i=1; i<LAST_RELAY_TYPE; i++)
    {
-      (*relay_data[i].free_static_mem_fun)() ;
+      if (relay_data[i].free_static_mem_fun != NULL)
+         (*relay_data[i].free_static_mem_fun)() ;
    }
    return 0 ;
 }

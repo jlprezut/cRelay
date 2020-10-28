@@ -54,6 +54,10 @@
 #define SAINSMART16_CH340_NAME         "Sainsmart USB CH340G 16-channel relay card"
 #define SAINSMART16_CH340_NUM_RELAYS     16
 
+/* Sainsmart USB CGE 8-channel relay card */
+#define CGE8_USB_NAME                  "CGE USB 8-channel relay card"
+#define CGE8_USB_NUM_RELAYS     8
+
 /* Generic GPIO connected relay cards */
 #define GENERIC_GPIO_NAME              "Generic GPIO relays"
 #define GENERIC_GPIO_NUM_RELAYS        8
@@ -70,29 +74,15 @@ typedef enum
 {
    NO_RELAY_TYPE=0,
    
-#ifdef DRV_CONRAD
-   CONRAD_4CHANNEL_USB_RELAY_TYPE, /* Conrad usb 4-channel relay card */
-#endif
-#ifdef DRV_SAINSMART
-   SAINSMART_USB_RELAY_TYPE,       /* Sainsmart usb 4/8-channel relay card */
-#endif
-#ifdef DRV_HIDAPI
-   HID_API_RELAY_TYPE,             /* HID API compatible relay card */
-#endif
-#ifdef DRV_SAINSMART16
-   SAINSMART16_USB_RELAY_TYPE,     /* Sainsmart USB-HID relay card */
-#endif
-   
-#ifdef DRV_SAINSMART16_CH340
-   SAINSMART16_CH340_RELAY_TYPE,     /* Sainsmart USB-HID relay card */
-#endif
-   
-   /* Add other relay types here */
-   
-#ifndef BUILD_LIB
-   GENERIC_GPIO_RELAY_TYPE,        /* Relays connected directly via GPIO pins */
-#endif
-   LAST_RELAY_TYPE
+   CONRAD_4CHANNEL_USB_RELAY_TYPE = 1, /* Conrad usb 4-channel relay card */
+   SAINSMART_USB_RELAY_TYPE = 2,       /* Sainsmart usb 4/8-channel relay card */
+   HID_API_RELAY_TYPE = 3,             /* HID API compatible relay card */
+   SAINSMART16_USB_RELAY_TYPE = 4,     /* Sainsmart USB-HID relay card */
+   SAINSMART16_CH340_RELAY_TYPE = 5,     /* Sainsmart USB-HID relay card */
+   CGE8_USB_RELAY_TYPE = 6,              /* CGE USB 8-channel relay card */
+   GENERIC_GPIO_RELAY_TYPE = 7,        /* Relays connected directly via GPIO pins */
+   LAST_RELAY_TYPE = 8
+
 } relay_type_t;
 
 typedef enum 
@@ -153,7 +143,7 @@ int crelay_detect_all_relay_cards(relay_info_t** relay_info);
  * Return:  0 - success
  *         -1 - fail, no relay card found
  *********************************************************/
-int crelay_detect_relay_card(char* portname, uint8_t* num_relays, char* serial, relay_info_t** relay_info);
+int crelay_detect_relay_card(char* portname, uint8_t* num_relays, char* serial, relay_info_t** relay_info, relay_type_t model);
 
 /**********************************************************
  * Function crelay_get_relay()

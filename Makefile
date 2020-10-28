@@ -18,6 +18,7 @@ DRV_SAINSMART	= y
 DRV_SAINSMART16	= n
 DRV_SAINSMART16_CH340 = y
 DRV_HIDAPI	= n
+DRV_CGE8	= y
 CONFBASE = "NOCONF"
 CONF = $(CONFBASE)
 
@@ -65,6 +66,11 @@ ifeq ($(DRV_HIDAPI), y)
 SRC	+= relay_drv_hidapi.c
 LIBS	+= -lhidapi-libusb
 OPTS	+= -DDRV_HIDAPI
+endif
+ifeq ($(DRV_CGE8), y)
+SRC	+= relay_drv_cge8.c
+LIBS	+= -lftdi -lusb-1.0
+OPTS	+= -DDRV_CGE8
 endif
 
 OBJ	= $(SRC:.c=.o)

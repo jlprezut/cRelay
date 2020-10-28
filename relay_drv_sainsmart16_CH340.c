@@ -200,7 +200,7 @@ int     rval, i;
     return i-1;
 }
 
-void save_serial_in_state(char *serial)
+static void save_serial_in_state(char *serial)
 {
     mem_state_t **mystate ;
     mystate = &all_states ;
@@ -221,7 +221,7 @@ void save_serial_in_state(char *serial)
     }
 }
 
-relay_state_t get_state(char *serial, uint8_t n_relay)
+static relay_state_t get_state(char *serial, uint8_t n_relay)
 {
     mem_state_t *mystate ;
     
@@ -238,7 +238,7 @@ relay_state_t get_state(char *serial, uint8_t n_relay)
     return INVALID ;
 }
 
-void set_state(char *serial, uint8_t n_relay, relay_state_t state)
+static void set_state(char *serial, uint8_t n_relay, relay_state_t state)
 {
     mem_state_t *mystate ;
     
