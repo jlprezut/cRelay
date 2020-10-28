@@ -15,5 +15,6 @@ lancement en tâche de fond.
   - /usr/local/bin/crelay -D
   
 Lancement au démarrage du raspberry PI
-  - Ajouter la ligne ci-dessus à la fin du fichier : /etc/rc.local
+  - Ajouter la ligne ci-dessus à la fin du fichier (avant la ligne "exit(0)" bien sûr)
+      * sudo vi /etc/rc.local
   
